@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Face Recognition App</title>
+    <style>
+        video, canvas {
+          border: 1px solid #000;
+          display: block;
+          margin-bottom: 10px;
+        }
+        #result {
+          font-size: 1.2em;
+          font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<h1>Face Recognition</h1>
+
+<video id="video" width="320" height="240" autoplay></video>
+<canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+
+<input type="text" id="nameInput" placeholder="Name for enrollment" />
+<br><br>
+<button onclick="recognizeFace()">Recognize</button>
+<button onclick="enrollFace()">Enroll</button>
+
+<p id="result">Result: -</p>
+
+<script src="app.js"></script>
+</body>
+</html>
