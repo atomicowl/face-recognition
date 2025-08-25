@@ -33,6 +33,8 @@ class FaceRecognizer(
 
     fun enroll(imageBytes: ByteArray, name: String): Boolean {
         val mat = imdecode(Mat(*imageBytes), IMREAD_COLOR)
+        resize(mat, mat, Size(320, 240)) // add this line to standardize frame size
+
         if (mat.empty()) {
             println("Invalid image")
             return false
@@ -51,7 +53,7 @@ class FaceRecognizer(
         // Assume first face
         val faceRect = faces[0]
         val faceMat = Mat(gray, faceRect)
-        resize(faceMat, faceMat, Size(200, 200))
+        resize(faceMat, faceMat, Size(320, 240)) // add this line to standardize frame size
 
         val label = nextLabelId++
         images.add(faceMat)
@@ -87,6 +89,8 @@ class FaceRecognizer(
 
     fun recognize(imageBytes: ByteArray): RecognitionResult {
         val mat = imdecode(Mat(*imageBytes), IMREAD_COLOR)
+        resize(mat, mat, Size(320, 240))
+
         if (mat.empty()) {
             return RecognitionResult("unidentified", null)
         }
@@ -102,7 +106,7 @@ class FaceRecognizer(
 
         val faceRect = faces[0]
         val faceMat = Mat(gray, faceRect)
-        resize(faceMat, faceMat, Size(200, 200))
+        resize(faceMat, faceMat, Size(320, 240))
 
         val labelArr = IntArray(1)
         val confidenceArr = DoubleArray(1)

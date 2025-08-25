@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Face Recognition App</title>
+    <title>Face Recognition</title>
     <style>
         #container {
           position: relative;
@@ -14,15 +13,14 @@
           position: absolute;
           top: 0;
           left: 0;
-          border: 1px solid black;
           width: 320px;
           height: 240px;
+          object-fit: fill; /* Ensures no cropping */
         }
         #overlay {
-          pointer-events: none; /* allows clicking through canvas */
+          pointer-events: none;
         }
         #result {
-          font-size: 1.2em;
           font-weight: bold;
           margin-top: 10px;
         }
@@ -38,7 +36,6 @@
 
 <input type="text" id="nameInput" placeholder="Name for enrollment" />
 <br /><br />
-<button onclick="recognizeFace()">Recognize</button>
 <button onclick="enrollFace()">Enroll</button>
 
 <p id="result">Result: -</p>
@@ -48,9 +45,11 @@
     const overlay = document.getElementById('overlay');
     const ctx = overlay.getContext('2d');
     const result = document.getElementById('result');
-    const canvas = document.createElement('canvas');
-    canvas.width = 320;
-    canvas.height = 240;
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = 320;
+    captureCanvas.height = 240;
+
+    let isRecognizing = false;
 
     // Start webcam stream
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -58,42 +57,38 @@
         video.srcObject = stream;
       })
       .catch(err => {
-        console.error("Webcam error:", err);
-        alert('Error accessing webcam: ' + err.message);
+        alert("Webcam access error: " + err.message);
       });
 
-    // Capture snapshot from video into a Blob
     function getSnapshotBlob() {
-      const captureCtx = canvas.getContext('2d');
-      captureCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const captureCtx = captureCanvas.getContext('2d');
+      captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
       return new Promise(resolve => {
-        canvas.toBlob(blob => resolve(blob), 'image/jpeg');
+        captureCanvas.toBlob(blob => resolve(blob), 'image/jpeg');
       });
     }
 
-    // Draw green face rectangle and label on overlay canvas
     function drawFaceRect(rect, name) {
       ctx.clearRect(0, 0, overlay.width, overlay.height);
       if (!rect) return;
 
+      const rectY = rect.y - 60;
       ctx.strokeStyle = 'lime';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       ctx.font = '16px Arial';
       ctx.fillStyle = 'lime';
 
-      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+      ctx.strokeRect(rect.x, rectY, rect.width, rect.height);
 
-      const text = name || 'unidentified';
-      const textX = rect.x;
-      const textY = rect.y > 20 ? rect.y - 5 : rect.y + 15;
-      ctx.fillText(text, textX, textY);
+      const label = name || 'unidentified';
+      const labelY = rectY > 20 ? rectY - 5 : rectY + 15;
+      ctx.fillText(label, rect.x, labelY);
     }
 
-    // Enroll face with name
     async function enrollFace() {
       const name = document.getElementById('nameInput').value.trim();
       if (!name) {
-        alert('Please enter a name for enrollment.');
+        alert('Please enter a name');
         return;
       }
 
@@ -109,15 +104,16 @@
         });
         const json = await res.json();
         result.innerText = `Enrolled: ${json.name}`;
-        drawFaceRect(null); // Clear any rectangles on enroll
+        drawFaceRect(null); // Clear overlay
       } catch (e) {
-        console.error(e);
-        alert('Enrollment failed: ' + e.message);
+        alert("Enrollment failed");
       }
     }
 
-    // Recognize face, draw rectangle + name
-    async function recognizeFace() {
+    async function recognizeFaceLoop() {
+      if (isRecognizing) return;
+      isRecognizing = true;
+
       const blob = await getSnapshotBlob();
       const formData = new FormData();
       formData.append("file", blob, "snapshot.jpg");
@@ -128,13 +124,21 @@
           body: formData
         });
         const json = await res.json();
+
         result.innerText = `Recognized: ${json.name}`;
         drawFaceRect(json.rect, json.name);
       } catch (e) {
-        console.error(e);
-        alert('Recognition failed: ' + e.message);
+        console.error("Recognition failed:", e);
+        drawFaceRect(null);
       }
+
+      isRecognizing = false;
     }
+
+    // Start recognition loop every 1 second
+    setInterval(() => {
+      recognizeFaceLoop();
+    }, 500);
 </script>
 </body>
 </html>
