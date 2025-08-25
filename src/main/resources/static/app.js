@@ -58,4 +58,25 @@ async function recognizeFace() {
 
   const json = await res.json();
   result.innerText = `Recognized: ${json.name}`;
+
+  // Draw face rectangle + label
+  drawFaceRect(json.rect, json.name);
+}
+
+const overlay = document.getElementById('overlay');
+const ctx = overlay.getContext('2d');
+
+function drawFaceRect(rect, name) {
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  if (!rect) return;
+
+  ctx.strokeStyle = 'lime'; // green
+  ctx.lineWidth = 3;
+  ctx.font = "16px Arial";
+  ctx.fillStyle = 'lime';
+
+  ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+
+  const text = name || 'unidentified';
+  ctx.fillText(text, rect.x, rect.y > 20 ? rect.y - 5 : rect.y + 15);
 }

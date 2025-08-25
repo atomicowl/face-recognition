@@ -2,33 +2,139 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Face Recognition App</title>
     <style>
-        video, canvas {
-          border: 1px solid #000;
-          display: block;
-          margin-bottom: 10px;
+        #container {
+          position: relative;
+          width: 320px;
+          height: 240px;
+        }
+        #video, #overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          border: 1px solid black;
+          width: 320px;
+          height: 240px;
+        }
+        #overlay {
+          pointer-events: none; /* allows clicking through canvas */
         }
         #result {
           font-size: 1.2em;
           font-weight: bold;
+          margin-top: 10px;
         }
     </style>
 </head>
 <body>
 <h1>Face Recognition</h1>
 
-<video id="video" width="320" height="240" autoplay></video>
-<canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+<div id="container">
+    <video id="video" autoplay></video>
+    <canvas id="overlay"></canvas>
+</div>
 
 <input type="text" id="nameInput" placeholder="Name for enrollment" />
-<br><br>
+<br /><br />
 <button onclick="recognizeFace()">Recognize</button>
 <button onclick="enrollFace()">Enroll</button>
 
 <p id="result">Result: -</p>
 
-<script src="app.js"></script>
+<script>
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const ctx = overlay.getContext('2d');
+    const result = document.getElementById('result');
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 240;
+
+    // Start webcam stream
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        console.error("Webcam error:", err);
+        alert('Error accessing webcam: ' + err.message);
+      });
+
+    // Capture snapshot from video into a Blob
+    function getSnapshotBlob() {
+      const captureCtx = canvas.getContext('2d');
+      captureCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg');
+      });
+    }
+
+    // Draw green face rectangle and label on overlay canvas
+    function drawFaceRect(rect, name) {
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      if (!rect) return;
+
+      ctx.strokeStyle = 'lime';
+      ctx.lineWidth = 3;
+      ctx.font = '16px Arial';
+      ctx.fillStyle = 'lime';
+
+      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+
+      const text = name || 'unidentified';
+      const textX = rect.x;
+      const textY = rect.y > 20 ? rect.y - 5 : rect.y + 15;
+      ctx.fillText(text, textX, textY);
+    }
+
+    // Enroll face with name
+    async function enrollFace() {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) {
+        alert('Please enter a name for enrollment.');
+        return;
+      }
+
+      const blob = await getSnapshotBlob();
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("file", blob, "snapshot.jpg");
+
+      try {
+        const res = await fetch("http://localhost:8080/enroll", {
+          method: "POST",
+          body: formData
+        });
+        const json = await res.json();
+        result.innerText = `Enrolled: ${json.name}`;
+        drawFaceRect(null); // Clear any rectangles on enroll
+      } catch (e) {
+        console.error(e);
+        alert('Enrollment failed: ' + e.message);
+      }
+    }
+
+    // Recognize face, draw rectangle + name
+    async function recognizeFace() {
+      const blob = await getSnapshotBlob();
+      const formData = new FormData();
+      formData.append("file", blob, "snapshot.jpg");
+
+      try {
+        const res = await fetch("http://localhost:8080/recognize", {
+          method: "POST",
+          body: formData
+        });
+        const json = await res.json();
+        result.innerText = `Recognized: ${json.name}`;
+        drawFaceRect(json.rect, json.name);
+      } catch (e) {
+        console.error(e);
+        alert('Recognition failed: ' + e.message);
+      }
+    }
+</script>
 </body>
 </html>
